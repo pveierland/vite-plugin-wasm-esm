@@ -75,15 +75,15 @@ export default function wasm(modules: string[]): Plugin {
 			// Create polyfill to allow SSR to load wasm from disk
 			// and web to load wasm file over HTTP
 			return `
-				import init from ${JSON.stringify(resolution.entryPath)};
+				import { initSync } from ${JSON.stringify(resolution.entryPath)};
 				import url from ${JSON.stringify(
 					`${resolution.module}/${resolution.wasmFileName}?url`,
 				)};
 				if (!import.meta.env.SSR) {
-					await init(url);
+			        initSync(url);
 				} else {
 					const { readFile } = await import("fs/promises");
-					await init(readFile(${JSON.stringify(resolution.wasmPath)}));
+					initSync(readFile(${JSON.stringify(resolution.wasmPath)}));
 				}
 				export * from ${JSON.stringify(resolution.entryPath)};
 				export default () => {};
