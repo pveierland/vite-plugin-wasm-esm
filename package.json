@@ -35,7 +35,7 @@
 		"release": "pnpm build && changeset publish"
 	},
 	"peerDependencies": {
-		"vite": "5.x || 6.x"
+		"vite": "5.x || 6.x || 7.x || 8.x"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.28.1",
