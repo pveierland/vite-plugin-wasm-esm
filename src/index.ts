@@ -2,6 +2,7 @@ import { basename } from "path";
 import { Plugin } from "vite";
 
 const IDENTIFIER = "\0__vite-plugin-wasm-esm";
+const ENV_STUB_ID = "\0__vite-plugin-wasm-esm-env-stub";
 
 /**
  * Returns a wasm pack generated module's wasm file name.
@@ -30,6 +31,16 @@ export default function wasm(modules: string[]): Plugin {
 		config: () => ({ ssr: { noExternal: modules } }),
 
 		async resolveId(source, importer, options) {
+			// Resolve "env" imports from wasm-bindgen glue files.
+			// These are stubs for the WASM import object — actual values are
+			// provided by the glue code during WebAssembly.instantiate.
+			if (source === "env" && importer) {
+				for (const resolution of resolutions.values()) {
+					if (importer === resolution.entryPath) {
+						return ENV_STUB_ID;
+					}
+				}
+			}
 			// We only care about packages provided to us
 			if (!moduleSet.has(source)) return null;
 			// Create a unique ID for the resolved module
@@ -68,6 +79,8 @@ export default function wasm(modules: string[]): Plugin {
 		},
 
 		async load(id) {
+			// Return empty module for wasm-bindgen "env" import stubs
+			if (id === ENV_STUB_ID) return "export default {};";
 			// Fetch module info
 			const resolution = resolutions.get(id);
 			// Only handle files we know about and have resolved
