@@ -67,6 +67,41 @@ describe("renderVirtualModule (autoInit: true)", () => {
 	});
 });
 
+describe("renderVirtualModule (autoInit: false)", () => {
+	const args = { ...BASE_ARGS, autoInit: false as const };
+
+	it("does not emit any init call", () => {
+		const out = renderVirtualModule(args);
+		expect(out).not.toMatch(/await init\(/);
+		expect(out).not.toContain("import.meta.env.SSR");
+	});
+
+	it("does not import init at all", () => {
+		const out = renderVirtualModule(args);
+		expect(out).not.toMatch(/^import init /m);
+	});
+
+	it("still imports url from the wasm-with-?url specifier", () => {
+		const out = renderVirtualModule(args);
+		expect(out).toMatch(/^import url from /m);
+	});
+
+	it("still re-exports everything from the entry module via export-*", () => {
+		const out = renderVirtualModule(args);
+		expect(out).toContain('export * from "/abs/pkg/foo.js"');
+	});
+
+	it("still exports wasmUrl", () => {
+		const out = renderVirtualModule(args);
+		expect(out).toContain("export const wasmUrl = url");
+	});
+
+	it("still emits a no-op default export", () => {
+		const out = renderVirtualModule(args);
+		expect(out).toContain("export default () => {};");
+	});
+});
+
 describe("findWasmFileName", () => {
 	it("returns the *_bg.wasm entry from package.json files[]", async () => {
 		const readFile = async () =>
