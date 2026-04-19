@@ -156,11 +156,7 @@ describe("findWasmFileName", () => {
 			seen.push(path);
 			return JSON.stringify({ name: "x", files: ["x_bg.wasm"] });
 		};
-		const result = await findWasmFileName(
-			"/pkg/x/x.js#section",
-			"x",
-			readFile,
-		);
+		const result = await findWasmFileName("/pkg/x/x.js#section", "x", readFile);
 		expect(result).toBe("x_bg.wasm");
 		expect(seen).toEqual(["/pkg/x/package.json"]);
 	});
