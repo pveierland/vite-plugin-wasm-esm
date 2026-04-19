@@ -1,68 +1,56 @@
-# vite-plugin-wasm-esm
+# vite-plugin-wasm-esm (internal fork)
 
-Vite plugin with SSR support to use [wasm-pack][1] generated packages as regular ES
-modules.
+Internal fork of [`vite-plugin-wasm-esm`](https://github.com/omnysecurity/vite-plugin-wasm-esm). Lives in `git@github.com:pveierland/vite-plugin-wasm-esm.git` and is typically consumed as a git submodule at `packages/vite-plugin-wasm-esm`.
 
-## Installation
+Exists to:
 
-Install using your favorite package manager
+1. Use the current wasm-bindgen `init({ module_or_path })` API, silencing the deprecation warning wasm-bindgen emits when `init()` is called with a positional URL argument.
+2. Track Vite 7 in `peerDependencies`.
+3. Resolve the `_bg.wasm` filename from the target package's `package.json` `files[]` with a heuristic fallback.
+4. Expose an `autoInit: false` option for advanced consumers that want to drive init themselves.
 
+Assumes wasm-pack `--target web` output. Other targets are not supported.
+
+## Consumption
+
+When mounted as a submodule at `packages/vite-plugin-wasm-esm`, a consuming app can depend on it via bun's link protocol:
+
+```json
+"vite-plugin-wasm-esm": "link:vite-plugin-wasm-esm"
 ```
-npm i -D vite-plugin-wasm-esm
+
+`bun install` then creates a symlink `node_modules/vite-plugin-wasm-esm -> ../../packages/vite-plugin-wasm-esm`.
+
+## Local development workflow
+
+```bash
+cd packages/vite-plugin-wasm-esm
+pnpm install    # once
+pnpm build      # rebuild dist/ after editing src/
+pnpm test       # run the helper unit tests
 ```
 
-## Usage
+After rebuilding, no `bun install` is needed in the consuming app — the symlink points at the same filesystem, so consumers pick up the new `dist/` automatically on next build.
 
-To use this plugin, you must support [`await`][2] at module top level. This has
-been [supported in all major browsers for a while][3], but if you need
-backwards compatibility, you can use [`vite-plugin-top-level-await`][4].
+## Options
 
-After installation, add it to your vite config and specify all packages you
-want the plugin to handle:
-
-```javascript
-// vite.config.js
+```ts
 import wasm from "vite-plugin-wasm-esm";
 
-/** @type {import('vite').UserConfig} */
-const config = {
-	plugins: [wasm(["@acme/wasm-calculator"])],
-};
-
-export default config;
+wasm(["my-wasm-pkg"]); // default: autoInit = true
+wasm(["my-wasm-pkg"], { autoInit: false }); // opt out; drive init yourself
 ```
 
-You probably also need to specify custom build targets, as the default targets
-provided by vite doesn't support await at the module top level:
+When `autoInit: false`, the emitted virtual module does not call `init()` and does not import the default export. Consumers import whatever they need from the target package's named exports (`init`, `initSync`, plus all wasm-bindgen-generated functions), along with a re-exported `wasmUrl` — the bundler-resolved URL of the `_bg.wasm` file:
 
-```javascript
-// vite.config.js
-import wasm from "vite-plugin-wasm-esm";
+```ts
+import { init, initSync, wasmUrl, some_exported_fn } from "my-wasm-pkg";
 
-/** @type {import('vite').UserConfig} */
-const config = {
-	plugins: [wasm(["@acme/wasm-calculator"])],
-	build: {
-		target: ["chrome89", "safari15", "firefox89"],
-	},
-	esbuild: {
-		target: ["chrome89", "safari15", "firefox89"],
-	},
-};
-
-export default config;
+// Example: share a compiled module across workers (initSync path).
+const mod = await WebAssembly.compileStreaming(fetch(wasmUrl));
+initSync({ module: mod });
 ```
 
-All wasm packages handled by the plugin can be used as regular ES modules, both
-on the server during SSR and in the browser:
+## License
 
-```javascript
-import { plus } from "@acme/wasm-calculator";
-
-console.log(plus(1, 1)); // 3
-```
-
-[1]: https://github.com/rustwasm/wasm-pack "wasm-pack project's github page"
-[2]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await "MDN documentation on the await keyword"
-[3]: https://caniuse.com/mdn-javascript_operators_await_top_level "Browser support of module top level await feature"
-[4]: https://github.com/Menci/vite-plugin-top-level-await "Vite plugin for polyfilling top level await"
+MIT (inherited from upstream).

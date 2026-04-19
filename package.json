@@ -1,30 +1,13 @@
 {
 	"name": "vite-plugin-wasm-esm",
-	"version": "1.0.3",
+	"version": "1.1.0-internal",
 	"type": "module",
 	"license": "MIT",
-	"description": "ESM integration of wasm-pack generated modules with SSR support",
-	"homepage": "https://github.com/omnysecurity/vite-plugin-wasm-esm",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/omnysecurity/vite-plugin-wasm-esm.git"
-	},
+	"description": "Internal fork: wasm-pack ESM integration with SSR support, using the current wasm-bindgen init API.",
 	"packageManager": "pnpm@10.4.1",
-	"keywords": [
-		"vite",
-		"plugin",
-		"vite-plugin",
-		"wasm",
-		"webassembly",
-		"wasm-pack",
-		"esm",
-		"es-modules",
-		"modules"
-	],
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"files": [
-		"CHANGELOG.md",
 		"dist/"
 	],
 	"scripts": {
