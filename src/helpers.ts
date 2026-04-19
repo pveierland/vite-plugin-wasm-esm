@@ -1,4 +1,4 @@
-import { basename } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 export function inferWasmFileName(moduleName: string): string {
 	return basename(moduleName).replace(/-/g, "_") + "_bg.wasm";
@@ -10,6 +10,42 @@ export interface RenderVirtualModuleArgs {
 	wasmFileName: string;
 	wasmPath: string;
 	autoInit: boolean;
+}
+
+function stripQueryAndHash(p: string): string {
+	const queryAt = p.indexOf("?");
+	const hashAt = p.indexOf("#");
+	const end =
+		queryAt === -1 && hashAt === -1
+			? p.length
+			: queryAt === -1
+				? hashAt
+				: hashAt === -1
+					? queryAt
+					: Math.min(queryAt, hashAt);
+	return p.slice(0, end);
+}
+
+export async function findWasmFileName(
+	entryPath: string,
+	moduleName: string,
+	readFile: (path: string) => Promise<string>,
+): Promise<string> {
+	const cleanEntry = stripQueryAndHash(entryPath);
+	const pkgJsonPath = join(dirname(cleanEntry), "package.json");
+	try {
+		const raw = await readFile(pkgJsonPath);
+		const pkg = JSON.parse(raw) as { files?: unknown };
+		if (Array.isArray(pkg.files)) {
+			const wasm = pkg.files.find(
+				(f): f is string => typeof f === "string" && f.endsWith("_bg.wasm"),
+			);
+			if (wasm) return wasm;
+		}
+	} catch {
+		// fall through to heuristic
+	}
+	return inferWasmFileName(moduleName);
 }
 
 export function renderVirtualModule(args: RenderVirtualModuleArgs): string {

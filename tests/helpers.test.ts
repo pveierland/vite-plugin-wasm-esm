@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { inferWasmFileName, renderVirtualModule } from "../src/helpers.js";
+import {
+	inferWasmFileName,
+	renderVirtualModule,
+	findWasmFileName,
+} from "../src/helpers.js";
 
 const BASE_ARGS = {
 	entryPath: "/abs/pkg/foo.js",
@@ -60,5 +64,100 @@ describe("renderVirtualModule (autoInit: true)", () => {
 	it("emits a no-op default export", () => {
 		const out = renderVirtualModule(args);
 		expect(out).toContain("export default () => {};");
+	});
+});
+
+describe("findWasmFileName", () => {
+	it("returns the *_bg.wasm entry from package.json files[]", async () => {
+		const readFile = async () =>
+			JSON.stringify({
+				name: "example_pkg",
+				files: ["example_pkg_bg.wasm", "example_pkg.js", "example_pkg.d.ts"],
+			});
+		const result = await findWasmFileName(
+			"/pkg/example_pkg/example_pkg.js",
+			"example_pkg",
+			readFile,
+		);
+		expect(result).toBe("example_pkg_bg.wasm");
+	});
+
+	it("works for scoped packages (reads package.json from the same directory as the entry)", async () => {
+		const seen: string[] = [];
+		const readFile = async (path: string) => {
+			seen.push(path);
+			return JSON.stringify({
+				name: "@acme/wasm-calc",
+				files: ["wasm_calc_bg.wasm", "wasm_calc.js"],
+			});
+		};
+		const result = await findWasmFileName(
+			"/pkg/@acme/wasm-calc/wasm_calc.js",
+			"@acme/wasm-calc",
+			readFile,
+		);
+		expect(result).toBe("wasm_calc_bg.wasm");
+		expect(seen).toEqual(["/pkg/@acme/wasm-calc/package.json"]);
+	});
+
+	it("strips a query string from the entry path before resolving package.json", async () => {
+		const seen: string[] = [];
+		const readFile = async (path: string) => {
+			seen.push(path);
+			return JSON.stringify({ name: "x", files: ["x_bg.wasm"] });
+		};
+		const result = await findWasmFileName(
+			"/pkg/x/x.js?v=abc123",
+			"x",
+			readFile,
+		);
+		expect(result).toBe("x_bg.wasm");
+		expect(seen).toEqual(["/pkg/x/package.json"]);
+	});
+
+	it("strips a hash fragment from the entry path before resolving package.json", async () => {
+		const seen: string[] = [];
+		const readFile = async (path: string) => {
+			seen.push(path);
+			return JSON.stringify({ name: "x", files: ["x_bg.wasm"] });
+		};
+		const result = await findWasmFileName(
+			"/pkg/x/x.js#section",
+			"x",
+			readFile,
+		);
+		expect(result).toBe("x_bg.wasm");
+		expect(seen).toEqual(["/pkg/x/package.json"]);
+	});
+
+	it("falls back to the heuristic when files[] is absent", async () => {
+		const readFile = async () => JSON.stringify({ name: "wasm-calc" });
+		const result = await findWasmFileName(
+			"/pkg/wasm-calc/wasm_calc.js",
+			"wasm-calc",
+			readFile,
+		);
+		expect(result).toBe("wasm_calc_bg.wasm");
+	});
+
+	it("falls back to the heuristic when files[] has no wasm entry", async () => {
+		const readFile = async () =>
+			JSON.stringify({ name: "x", files: ["x.js", "x.d.ts"] });
+		const result = await findWasmFileName("/pkg/x/x.js", "x", readFile);
+		expect(result).toBe("x_bg.wasm");
+	});
+
+	it("falls back to the heuristic when package.json is unreadable", async () => {
+		const readFile = async () => {
+			throw new Error("ENOENT");
+		};
+		const result = await findWasmFileName("/pkg/x/x.js", "x", readFile);
+		expect(result).toBe("x_bg.wasm");
+	});
+
+	it("falls back to the heuristic when package.json is malformed", async () => {
+		const readFile = async () => "{ not json";
+		const result = await findWasmFileName("/pkg/x/x.js", "x", readFile);
+		expect(result).toBe("x_bg.wasm");
 	});
 });

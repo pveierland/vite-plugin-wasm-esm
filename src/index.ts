@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
-import { inferWasmFileName, renderVirtualModule } from "./helpers.js";
+import { readFile } from "node:fs/promises";
+import { findWasmFileName, renderVirtualModule } from "./helpers.js";
 
 const IDENTIFIER = "\0__vite-plugin-wasm-esm";
 
@@ -36,7 +37,11 @@ export default function wasm(
 				const entryResolution = await resolve(source);
 				if (!entryResolution) return null;
 
-				const wasmFileName = inferWasmFileName(source);
+				const wasmFileName = await findWasmFileName(
+					entryResolution.id,
+					source,
+					(p) => readFile(p, "utf8"),
+				);
 				const wasmResolution = await resolve(`${source}/${wasmFileName}`);
 				if (!wasmResolution) {
 					throw new Error(
