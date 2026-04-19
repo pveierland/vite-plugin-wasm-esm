@@ -31,14 +31,12 @@
 		"dev": "tsup src/index.ts --format esm --dts --watch",
 		"build": "tsup src/index.ts --format esm --dts",
 		"lint": "prettier --check .",
-		"format": "prettier --write .",
-		"release": "pnpm build && changeset publish"
+		"format": "prettier --write ."
 	},
 	"peerDependencies": {
 		"vite": "5.x || 6.x"
 	},
 	"devDependencies": {
-		"@changesets/cli": "^2.28.1",
 		"@types/node": "^22.13.4",
 		"prettier": "^3.5.1",
 		"tsup": "^8.3.6",
